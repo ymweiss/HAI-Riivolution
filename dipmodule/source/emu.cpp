@@ -137,6 +137,7 @@ static ipcmessage ProxyMessage;
 static ipcmessage CBMessage;
 typedef s32 (*NANDFS_Func)(const ipcmessage*);
 
+/*
 // IOS37 specific stuff
 static const struct ProxiIOS::EMU::ISFSFile *FS_Files = (struct ProxiIOS::EMU::ISFSFile*)0x200499A4;
 static NANDFS_Func NAND_Funcs[7] = {
@@ -148,6 +149,17 @@ static NANDFS_Func NAND_Funcs[7] = {
 	(NANDFS_Func)(0x2000598C+1), // handle_fs_seek
 	(NANDFS_Func)(0x200059E8+1), // handle_fs_ioctl
 	(NANDFS_Func)(0x20005C4C+1), // handle_fs_ioctlv
+};*/
+//IOS 56 addresses
+static NANDFS_Func NAND_Funcs[7] = {
+	// these are thumb functions so add 1 to the pointers
+	(NANDFS_Func)(0x20005774+1), // handle_fs_open
+	(NANDFS_Func)(0x20005f88+1), // handle_fs_close
+	(NANDFS_Func)(0x20005818+1), // handle_fs_read
+	(NANDFS_Func)(0x20005974+1), // handle_fs_write
+	(NANDFS_Func)(0x20005b58+1), // handle_fs_seek
+	(NANDFS_Func)(0x20005bb4+1), // handle_fs_ioctl
+	(NANDFS_Func)(0x20005e18+1), // handle_fs_ioctlv
 };
 
 static int FilesystemHook(const ipcmessage* message, int* result)
