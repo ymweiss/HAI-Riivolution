@@ -341,73 +341,74 @@ const u8 tmd_hash[20] = {
     0xE4, 0x77, 0x58, 0x16, 0x50, 0x5E, 0xCC, 0xCD, 0x3B, 0x16
 };
 
-// 1st word = value to search, 2nd word = mask of bits to disregard
+//IOS56 pattern to find and replace
 static const u16 old_dev_fs_main[] = {
-	0xD009, 0,
-	0x68A0, 0,
-	0xF7FF, 0x07FF, 0xF9CF, 0xFFFF,
-	0x2800, 0,
-	0xD104, 0,
-	0x1C20, 0,
-	0xF7FF, 0x07FF, 0xFA84, 0xFFFF,
-	0x1C01, 0,
-	0xE038, 0x00FF,
-	0x6823, 0,
-	0x2B01, 0,
-	0xD009, 0x00FF,
-	0x68A0, 0,
-	0xF7FA, 0x07FF, 0xFBEA, 0xFFFF,
-	0x2800, 0,
-	0xD104, 0
+	0xD009,
+	0x68A0,
+	0xF7FF,
+	0x2800,
+	0xD104,
+	0x1C20,
+	0xF7FF,
+	0x1C01,
+	0xE038,
+	0x6823,
+	0x2B01,
+	0xD009,
+	0x68A0,
+	0xF7FA,
+	0x2800,
+	0xD104,
 };
 
-// not used directly, here for reference purposes
+
 static const u16 new_dev_fs_main[] = {
-/* 20005E82 */ 0xD10C,     // bne 20005E9E (+3)
-               0x6823,     // ldr r3, [r4] (ipcmsg)
-/* 20005E86 */ 0xF7FF,     // bl open_dev_flash    (unmodified)
-               0xF9B9,     // check_fd_is_flash-0x16 (-22)
-               0x2800,     // cmp r0, #0           (unmodified)
-/* 20005E8C */ 0xD103,     // bne 20005E96 (-1)
-/* 20005E8E */ 0xE005,     // b 200005E9C
-               0x0000,     // unreachable          (unmodified)
-               0x0000,     // unreachable          (unmodified)
-               0x1C01,     // unreachable          (unmodified)
-/* 20005E96 */ 0xE038,     // b 20005F0A           (unmodified)
-               0x6823,     // unreachable          (unmodified)
-               0x2B01,     // unreachable          (unmodified)
-/* 20005E9C */ 0xD009,     // beq(b) 20005EB2      (unmodified)
-/* 20005E9E */ 0x68A0,     // ldr r0, [r4,#8]      (unmodified)
-/* 20005EA0 */ 0x0000,     // bl check_fd_is_boot2 (unmodified)
-               0x0000,     //                      (unmodified)
-               0x2800,     // cmp r0, #0           (unmodified)
-/* 20005EA6 */ 0xD1ED      // bne 20005E84 (-23)
+	0xD00c,
+	0x6823,
+	0xF7FF,
+	0x2800,
+	0xD103,
+	0xE005,
+	0xF7FF,
+	0x1C01,
+	0xE038,
+	0x6823,
+	0x2B01,
+	0xD009,
+	0x68A0,
+	0xF7FA,
+	0x2800,
+	0xD1ed,
 };
 
+
+
+//find and replace directly
 static const u16 old_dev_fs_open_flash[] = {
-	0xB510, 0,
-	0x2005, 0,
-	0x4240, 0,
-	0x2100, 0,
-	0x4C07, 0,
-	0x00CB, 0,
-	0x191A, 0,
-	0x6813, 0,
-	0x2B00, 0,
-	0xD103, 0,
-	0x2301, 0,
-	0x6013, 0,
-	0x1C10, 0,
-	0xE002, 0,
-	0x3101, 0,
-	0x2901, 0,
-	0xD9F3, 0,
-	0xBC10, 0,
-	0xBC02, 0,
-	0x4708, 0,
-	0x2004, 0xFFFF, 0x9C44, 0xFFFF,
-	0xB500, 0,
-	0x1C02, 0
+	0xB510,
+	0x2005,
+	0x4240,
+	0x2100,
+	0x4C07,
+	0x00CB,
+	0x191A,
+	0x6813,
+	0x2B00,
+	0xD103,
+	0x2301,
+	0x6013,
+	0x1C10,
+	0xE002,
+	0x3101,
+	0x2901,
+	0xD9F3,
+	0xBC10,
+	0xBC02,
+	0x4708,
+	0x2004, 
+        0x9C44,
+	0xB500,
+	0x1C02
 };
 
 // assume this will be placed at a mod 4 address
@@ -930,10 +931,30 @@ static int patch_prng_perms(void* buf, s32 size)
 
 static int patch_fs_redirect(void* buf, s32 size)
 {
+	//search through the kernel binary, replacing the old patterns with the new patterns
 	u32 i, j;
 	s16 *kernel = (s16*)buf;
+	bool replaceMain = false;
+	bool replaceFlash = false;
 	for (i=0; i < size - sizeof(old_dev_fs_main)/4; i++)
 	{
+		if (!replaceMain && !memcmp(kernel+i, old_dev_fs_main, sizeof(old_dev_fs_main)))
+		{
+		    memcpy(kernel+i, new_dev_fs_main, sizeof(new_dev_fs_main));
+		    replaceMain = true;
+		}
+
+		else if (!replaceFlash && !memcmp(kernel+i, old_dev_fs_open_flash, sizeof(old_dev_fs_open_flash)))
+		{
+		    memcpy(kernel+i, new_dev_fs_open_flash, sizeof(new_dev_fs_open_flash))
+		    replaceFlash = true;
+		}
+		
+		if (replacemain && replaceFlash)
+		{
+		    return 0;
+		}
+		/*
 		s16 *open_dev_flash;
 		for (j=0; j < sizeof(old_dev_fs_main)/4; j++) {
 			s16 match_needed = old_dev_fs_main[j*2] | old_dev_fs_main[j*2+1];
@@ -974,8 +995,9 @@ static int patch_fs_redirect(void* buf, s32 size)
 		}
 
 		return 1;
+  		*/
 	}
-	return 0;
+	return 1;
 }
 
 static u8 *load_tmd_content(tmd* title_tmd, u16 index)
