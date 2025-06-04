@@ -444,7 +444,8 @@ static const u16 new_dev_fs_open_flash[] = {
 enum {
     MEM2_INDEX=0,
     NAND_PERMS_INDEX,
-    DVD_SWITCH_INDEX
+    DVD_SWITCH_INDEX,
+    NEW_NAND_PERMS_INDEX
 };
 
 static const struct {
@@ -454,7 +455,8 @@ static const struct {
 } patches[] = {
     {MEM_PROT, 1, 2},
     {(u16*)0x93A112F2, 0xD001, 0xE001},
-    {(u16*)0x939B052C, 0xD140, 0x46C0}
+    {(u16*)0x939B052C, 0xD140, 0x46C0},
+    {(u16*)0x93A11306, 0xD001, 0xE001}
 };
 
 typedef struct _cmap_entry
@@ -1658,11 +1660,11 @@ static bool do_exploit()
 			load_patched_ios(es_fd, new_ios, MEM1_IOSVERSION[0]+1);
 			free(new_ios);
 			es_fd = 0;
-			recover_from_reload((u32)HAXX_IOS);
+			recover_from_reload((u32)IOS_DEST);
 #if DEBUG_HAXX && DEBUG_NET
 			Init_DebugConsole();
 #endif
-			if (IOS_GetVersion() != (u32)HAXX_IOS || IOS_GetRevision() != ios_rev+1) {
+			if (IOS_GetVersion() != (u32)IOS_DEST || IOS_GetRevision() != ios_rev+1) {
 				printf("New IOS Version is incorrect, %08X\n", IOS_GetVersion());
 				patch_failed = 1;
 			} else
@@ -1670,7 +1672,8 @@ static bool do_exploit()
 		}
 
 		if (!patch_failed)
-			patch_failed = !do_patch(NAND_PERMS_INDEX);
+			
+			patch_failed = !do_patch(NEW_NAND_PERMS_INDEX);
 
 		// if sneek was found, we need to reload IOS again before doing anything else
 		// to make sure we have clean modules
@@ -1691,25 +1694,10 @@ static bool do_exploit()
 				printf("SDHC loaded\n");
 		}
 
-#ifndef YARR
-		if (!patch_failed)
-			patch_failed = !do_sig_check_patch();
-		if (!patch_failed)
-			patch_failed = !do_patch(DVD_SWITCH_INDEX);
-#else
 		// kill sig check
-		if (*(u16*)0x93A752E6 == 0x2007) {
-			*(u16*)0x93A752E6 = 0x2000;
-			DCFlushRange((void*)0x93A752E0, 32);
-		}
-		// use original IOS version
-		if (IOS_GetVersion() > 100) {
-			u32 ios = *MEM_IOSVERSION;
-			ios = ((ios&0xFFFF0000)-(100<<16))|(ios&0xFFFF);
-			*MEM_IOSVERSION = ios;
-			DCFlushRange(MEM_IOSVERSION, 32);
-		}
-#endif
+		*(u16*)0x93A7547A = 0x2000;
+		*(u16*)0x93A75626 = 0x2000;
+
 
 		if (sneek) {
 			printf("SNEEK found, have to reboot again *sigh*\n");
